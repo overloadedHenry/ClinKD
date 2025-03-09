@@ -1,0 +1,16 @@
+{
+    "qwen2vl_data": {
+    "file_name": "/media/adminroot/disk_2/ghy/workspace/BiRD_data/Data4Qwen2vl/Train_sharegpt_final.json",
+    "formatting": "sharegpt",
+    "columns": {
+        "messages": "messages",
+        "images": "images"
+    },
+    "tags": {
+        "role_tag": "role",
+        "content_tag": "content",
+        "user_tag": "user",
+        "assistant_tag": "assistant"
+    }
+    }
+}

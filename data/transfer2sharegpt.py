@@ -35,5 +35,5 @@ def replace_token(path):
 
 
 if __name__ == '__main__':
-    replace_token('/media/adminroot/disk_2/ghy/workspace/BiRD_data/Data4Qwen2vl/Train_sharegpt_final.json')
+    replace_token('')
 

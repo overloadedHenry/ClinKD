@@ -83,7 +83,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--max_new_tokens', type=int, default=80)
     parser.add_argument('--num_workers', type=int, default=1)
-    parser.add_argument('--img_root_path', type=str, default='/media/adminroot/disk_2/ghy/GMAI___SA-Med2D-20M/raw/SAMed2Dv1/images')
+    parser.add_argument('--img_root_path', type=str, default='')
     parser.add_argument('--seed', type=int, default=0)
     args = parser.parse_args()
     for key, value in vars(args).items():
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     model_name = "--".join([args.checkpoint.split('/')[-2], args.checkpoint.split('/')[-1]])
     # model_name = args.checkpoint.split('/')[-1]
     save_json_name = os.path.basename(args.json_path[:-5]) + f"_pred_bfloat16_qwenvl2_infer.jsonl"
-    save_root = f"/media/adminroot/disk_2/ghy/workspace/test_metric/{model_name}_nosample_nopad"
+    save_root = ""
     os.makedirs(save_root, exist_ok=True)
     res_file = os.path.join(save_root, save_json_name)
 
@@ -115,12 +115,12 @@ if __name__ == '__main__':
     )
         
  
-    model = Qwen2VLForConditionalGeneration.from_pretrained("/media/adminroot/disk_2/ghy/workspace/train_2025-01-08-11-04-20", torch_dtype="auto", device_map="auto")
+    model = Qwen2VLForConditionalGeneration.from_pretrained("", torch_dtype="auto", device_map="auto")
 
     min_pixels = 512 * 512
     max_pixels = 1024 * 1024
 
-    processor = AutoProcessor.from_pretrained("/media/adminroot/disk_2/ghy/workspace/train_2025-01-08-11-04-20", min_pixels=min_pixels, max_pixels=max_pixels)
+    processor = AutoProcessor.from_pretrained("", min_pixels=min_pixels, max_pixels=max_pixels)
 
     all_idx = 0
 

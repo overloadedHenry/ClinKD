@@ -7,7 +7,7 @@
 
 ## 💡 Highlights 
 
-- 🔥 **Med-CLIP Guided RoPE:** We propose the Med-CLIP Guided RoPE to improve image-text alignment by fixing distinct intervals between different modal features.
+- 🔥 **Med-CLIP Guided RoPE:** We propose the Med-CLIP Guided RoPE to improve image-text alignment by fixing distinct intervals between different modal features. The modified model is in `model/modeling_qwen2_vl.py`
 - 🔥 **Clinical Knowledge Distiller:** The Clinical Knowlegde Distiller comprise Pseudo-Labels Medical Distillation and Reflective Correction Training. We use pseudo-labels to overcome the limitation caused by medical knowledge gap.
 - 🔥 **Semantic-Aware Selective Generation:** The SASG part is used for the best answer with semantic similarity.
 

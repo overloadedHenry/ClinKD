@@ -1,6 +1,6 @@
 <div id="top" align="center">
 <p align="center">
-    <img src="https://capsule-render.vercel.app/api?type=cylinder&height=300&color=0:c2e59c,100:64b3f4&text=ClinKD:%20Cross-Modal%20Clinical%20Knowledge%20Distiller%20For%20Multi-Task%20Medical%20Images&section=header&textBg=false&fontSize=22" alt="Header Image">
+    <img src="https://capsule-render.vercel.app/api?type=rounded&height=300&color=0:c2e59c,100:64b3f4&text=ClinKD:%20Cross-Modal%20Clinical%20Knowledge%20Distiller%20For%20Multi-Task%20Medical%20Images&section=header&textBg=false&fontSize=22" alt="Header Image">
   </a>
 </p>
 </div>

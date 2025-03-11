@@ -1,4 +1,4 @@
-# Copyright 2024 the LlamaFactory team.
+# Copyright 2025 the LlamaFactory team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,16 +17,22 @@ import sys
 from typing import TYPE_CHECKING, Dict, Literal, Optional, Sequence, Union
 
 import numpy as np
-from datasets import DatasetDict, load_dataset, load_from_disk
-from transformers.utils.versions import require_version
+from datasets import load_dataset, load_from_disk
 
 from ..extras import logging
 from ..extras.constants import FILEEXT2TYPE
-from ..extras.misc import has_tokenized_data
-from .aligner import align_dataset
-from .data_utils import merge_dataset, split_dataset
+from ..extras.misc import check_version, has_tokenized_data
+from .converter import align_dataset
+from .data_utils import get_dataset_module, merge_dataset, split_dataset
 from .parser import get_dataset_list
-from .preprocess import get_preprocess_and_print_func
+from .processor import (
+    FeedbackDatasetProcessor,
+    PackedSupervisedDatasetProcessor,
+    PairwiseDatasetProcessor,
+    PretrainDatasetProcessor,
+    SupervisedDatasetProcessor,
+    UnsupervisedDatasetProcessor,
+)
 
 
 if TYPE_CHECKING:
@@ -36,6 +42,7 @@ if TYPE_CHECKING:
     from ..hparams import DataArguments, ModelArguments
     from .data_utils import DatasetModule
     from .parser import DatasetAttr
+    from .processor import DatasetProcessor
     from .template import Template
 
 
@@ -84,7 +91,7 @@ def _load_single_dataset(
         raise NotImplementedError(f"Unknown load type: {dataset_attr.load_from}.")
 
     if dataset_attr.load_from == "ms_hub":
-        require_version("modelscope>=1.11.0", "To fix: pip install modelscope>=1.11.0")
+        check_version("modelscope>=1.11.0", mandatory=True)
         from modelscope import MsDataset  # type: ignore
         from modelscope.utils.config_ds import MS_DATASETS_CACHE  # type: ignore
 
@@ -103,7 +110,7 @@ def _load_single_dataset(
             dataset = dataset.to_hf_dataset()
 
     elif dataset_attr.load_from == "om_hub":
-        require_version("openmind>=0.8.0", "To fix: pip install openmind>=0.8.0")
+        check_version("openmind>=0.8.0", mandatory=True)
         from openmind import OmDataset  # type: ignore
         from openmind.utils.hub import OM_DATASETS_CACHE  # type: ignore
 
@@ -157,21 +164,67 @@ def _get_merged_dataset(
     data_args: "DataArguments",
     training_args: "Seq2SeqTrainingArguments",
     stage: Literal["pt", "sft", "rm", "ppo", "kto"],
-) -> Optional[Union["Dataset", "IterableDataset"]]:
+    merge: bool = True,
+) -> Optional[Union["Dataset", "IterableDataset", Dict[str, "Dataset"]]]:
     r"""
-    Gets the merged datasets in the standard format.
+    Returns the merged datasets in the standard format.
     """
     if dataset_names is None:
         return None
 
-    datasets = []
-    for dataset_attr in get_dataset_list(dataset_names, data_args.dataset_dir):
+    datasets = {}
+    for dataset_name, dataset_attr in zip(dataset_names, get_dataset_list(dataset_names, data_args.dataset_dir)):
         if (stage == "rm" and dataset_attr.ranking is False) or (stage != "rm" and dataset_attr.ranking is True):
             raise ValueError("The dataset is not applicable in the current training stage.")
 
-        datasets.append(_load_single_dataset(dataset_attr, model_args, data_args, training_args))
+        datasets[dataset_name] = _load_single_dataset(dataset_attr, model_args, data_args, training_args)
 
-    return merge_dataset(datasets, data_args, seed=training_args.seed)
+    if merge:
+        return merge_dataset(list(datasets.values()), data_args, seed=training_args.seed)
+    else:
+        return datasets
+
+
+def _get_dataset_processor(
+    data_args: "DataArguments",
+    stage: Literal["pt", "sft", "rm", "ppo", "kto"],
+    template: "Template",
+    tokenizer: "PreTrainedTokenizer",
+    processor: Optional["ProcessorMixin"],
+    do_generate: bool = False,
+) -> "DatasetProcessor":
+    r"""
+    Returns the corresponding dataset processor.
+    """
+    if stage == "pt":
+        dataset_processor_class = PretrainDatasetProcessor
+    elif stage == "sft" and not do_generate:
+        if data_args.packing:
+            if data_args.neat_packing:  # hack datasets to have int32 attention mask
+                from datasets.arrow_writer import OptimizedTypedSequence, TypedSequence
+
+                def __init__(self, data, **kwargs):
+                    return TypedSequence.__init__(
+                        self,
+                        data,
+                        type=kwargs.pop("type", None),
+                        try_type=kwargs.pop("try_type", None),
+                        optimized_int_type=kwargs.pop("optimized_int_type", None),
+                    )
+
+                OptimizedTypedSequence.__init__ = __init__
+            dataset_processor_class = PackedSupervisedDatasetProcessor
+        else:
+            dataset_processor_class = SupervisedDatasetProcessor
+
+    elif stage == "rm":
+        dataset_processor_class = PairwiseDatasetProcessor
+    elif stage == "kto":
+        dataset_processor_class = FeedbackDatasetProcessor
+    else:
+        dataset_processor_class = UnsupervisedDatasetProcessor
+
+    return dataset_processor_class(template=template, tokenizer=tokenizer, processor=processor, data_args=data_args)
 
 
 def _get_preprocessed_dataset(
@@ -190,7 +243,7 @@ def _get_preprocessed_dataset(
     if dataset is None:
         return None
 
-    preprocess_func, print_function = get_preprocess_and_print_func(
+    dataset_processor = _get_dataset_processor(
         data_args, stage, template, tokenizer, processor, do_generate=(training_args.predict_with_generate and is_eval)
     )
     column_names = list(next(iter(dataset)).keys())
@@ -203,7 +256,7 @@ def _get_preprocessed_dataset(
         )
 
     dataset = dataset.map(
-        preprocess_func,
+        dataset_processor.preprocess_dataset,
         batched=True,
         batch_size=data_args.preprocessing_batch_size,
         remove_columns=column_names,
@@ -213,7 +266,7 @@ def _get_preprocessed_dataset(
     if training_args.should_log:
         try:
             print("eval example:" if is_eval else "training example:")
-            print_function(next(iter(dataset)))
+            dataset_processor.print_data_example(next(iter(dataset)))
         except StopIteration:
             if stage == "pt":
                 raise RuntimeError("Cannot find sufficient samples, consider increasing dataset size.")
@@ -235,27 +288,16 @@ def get_dataset(
     r"""
     Gets the train dataset and optionally gets the evaluation dataset.
     """
-    # Load tokenized dataset
+    # Load tokenized dataset if path exists
     if data_args.tokenized_path is not None:
         if has_tokenized_data(data_args.tokenized_path):
             logger.warning_rank0("Loading dataset from disk will ignore other data arguments.")
-            tokenized_data: Union["Dataset", "DatasetDict"] = load_from_disk(data_args.tokenized_path)
-            logger.info_rank0(f"Loaded tokenized dataset from {data_args.tokenized_path}.")
-
-            dataset_module: Dict[str, "Dataset"] = {}
-            if isinstance(tokenized_data, DatasetDict):
-                if "train" in tokenized_data:
-                    dataset_module["train_dataset"] = tokenized_data["train"]
-
-                if "validation" in tokenized_data:
-                    dataset_module["eval_dataset"] = tokenized_data["validation"]
-
-            else:  # Dataset
-                dataset_module["train_dataset"] = tokenized_data
-
+            tokenized_data = load_from_disk(data_args.tokenized_path)
+            dataset_module = get_dataset_module(tokenized_data)
             if data_args.streaming:
-                dataset_module = {k: v.to_iterable_dataset() for k, v in dataset_module.items()}
+                dataset_module["train_dataset"] = dataset_module["train_dataset"].to_iterable_dataset()
 
+            logger.info_rank0(f"Loaded tokenized dataset from {data_args.tokenized_path}.")
             return dataset_module
 
         if data_args.streaming:
@@ -264,47 +306,31 @@ def get_dataset(
     # Load and preprocess dataset
     with training_args.main_process_first(desc="load dataset"):
         dataset = _get_merged_dataset(data_args.dataset, model_args, data_args, training_args, stage)
-        eval_dataset = _get_merged_dataset(data_args.eval_dataset, model_args, data_args, training_args, stage)
+        eval_dataset = _get_merged_dataset(
+            data_args.eval_dataset, model_args, data_args, training_args, stage, merge=training_args.do_predict
+        )
 
     with training_args.main_process_first(desc="pre-process dataset"):
         dataset = _get_preprocessed_dataset(
             dataset, data_args, training_args, stage, template, tokenizer, processor, is_eval=False
         )
-        eval_dataset = _get_preprocessed_dataset(
-            eval_dataset, data_args, training_args, stage, template, tokenizer, processor, is_eval=True
-        )
-
-        if data_args.val_size > 1e-6:
-            dataset_dict = split_dataset(dataset, data_args, seed=training_args.seed)
+        if isinstance(eval_dataset, dict):
+            for eval_name, eval_data in eval_dataset.items():
+                eval_dataset[eval_name] = _get_preprocessed_dataset(
+                    eval_data, data_args, training_args, stage, template, tokenizer, processor, is_eval=True
+                )
         else:
-            dataset_dict = {}
-            if dataset is not None:
-                if data_args.streaming:
-                    dataset = dataset.shuffle(buffer_size=data_args.buffer_size, seed=training_args.seed)
+            eval_dataset = _get_preprocessed_dataset(
+                eval_dataset, data_args, training_args, stage, template, tokenizer, processor, is_eval=True
+            )
 
-                dataset_dict["train"] = dataset
-
-            if eval_dataset is not None:
-                if data_args.streaming:
-                    eval_dataset = eval_dataset.shuffle(buffer_size=data_args.buffer_size, seed=training_args.seed)
-
-                dataset_dict["validation"] = eval_dataset
-
-            dataset_dict = DatasetDict(dataset_dict)
-
-        if data_args.tokenized_path is not None:
+        dataset_dict = split_dataset(dataset, eval_dataset, data_args, seed=training_args.seed)
+        if data_args.tokenized_path is not None:  # save tokenized dataset to disk and exit
             if training_args.should_save:
                 dataset_dict.save_to_disk(data_args.tokenized_path)
-                logger.info_rank0(f"Tokenized dataset saved at {data_args.tokenized_path}.")
+                logger.info_rank0(f"Tokenized dataset is saved at {data_args.tokenized_path}.")
                 logger.info_rank0(f"Please restart the training with `tokenized_path: {data_args.tokenized_path}`.")
 
             sys.exit(0)
 
-        dataset_module = {}
-        if "train" in dataset_dict:
-            dataset_module["train_dataset"] = dataset_dict["train"]
-
-        if "validation" in dataset_dict:
-            dataset_module["eval_dataset"] = dataset_dict["validation"]
-
-        return dataset_module
+        return get_dataset_module(dataset_dict)

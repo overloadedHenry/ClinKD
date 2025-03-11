@@ -42,12 +42,20 @@ def is_pyav_available():
     return _is_package_available("av")
 
 
+def is_librosa_available():
+    return _is_package_available("librosa")
+
+
 def is_fastapi_available():
     return _is_package_available("fastapi")
 
 
 def is_galore_available():
     return _is_package_available("galore_torch")
+
+
+def is_apollo_available():
+    return _is_package_available("apollo_torch")
 
 
 def is_gradio_available():
@@ -60,6 +68,10 @@ def is_matplotlib_available():
 
 def is_pillow_available():
     return _is_package_available("PIL")
+
+
+def is_ray_available():
+    return _is_package_available("ray")
 
 
 def is_requests_available():
@@ -77,11 +89,6 @@ def is_starlette_available():
 @lru_cache
 def is_transformers_version_greater_than(content: str):
     return _get_package_version("transformers") >= version.parse(content)
-
-
-@lru_cache
-def is_transformers_version_equal_to_4_46():
-    return version.parse("4.46.0") <= _get_package_version("transformers") <= version.parse("4.46.1")
 
 
 def is_uvicorn_available():

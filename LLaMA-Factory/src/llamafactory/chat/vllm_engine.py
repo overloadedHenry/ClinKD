@@ -1,4 +1,4 @@
-# Copyright 2024 the LlamaFactory team.
+# Copyright 2025 the LlamaFactory team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,18 +19,13 @@ from typing_extensions import override
 
 from ..data import get_template_and_fix_tokenizer
 from ..extras import logging
-from ..extras.constants import IMAGE_PLACEHOLDER, VIDEO_PLACEHOLDER
+from ..extras.constants import AUDIO_PLACEHOLDER, IMAGE_PLACEHOLDER, VIDEO_PLACEHOLDER, EngineName
 from ..extras.misc import get_device_count
-from ..extras.packages import is_pillow_available, is_vllm_available
+from ..extras.packages import is_vllm_available
 from ..model import load_config, load_tokenizer
 from ..model.model_utils.quantization import QuantizationMethod
 from ..model.model_utils.visual import LlavaMultiModalProjectorForYiVLForVLLM
 from .base_engine import BaseEngine, Response
-
-
-if is_pillow_available():
-    from PIL import Image
-    from PIL.Image import Image as ImageObject
 
 
 if is_vllm_available():
@@ -39,7 +34,7 @@ if is_vllm_available():
 
 
 if TYPE_CHECKING:
-    from ..data.mm_plugin import ImageInput, VideoInput
+    from ..data.mm_plugin import AudioInput, ImageInput, VideoInput
     from ..hparams import DataArguments, FinetuningArguments, GeneratingArguments, ModelArguments
 
 
@@ -54,6 +49,8 @@ class VllmEngine(BaseEngine):
         finetuning_args: "FinetuningArguments",
         generating_args: "GeneratingArguments",
     ) -> None:
+        self.name = EngineName.VLLM
+        self.model_args = model_args
         config = load_config(model_args)  # may download model from ms hub
         if getattr(config, "quantization_config", None):  # gptq models should use float16
             quantization_config: Dict[str, Any] = getattr(config, "quantization_config", None)
@@ -109,10 +106,11 @@ class VllmEngine(BaseEngine):
         tools: Optional[str] = None,
         images: Optional[Sequence["ImageInput"]] = None,
         videos: Optional[Sequence["VideoInput"]] = None,
+        audios: Optional[Sequence["AudioInput"]] = None,
         **input_kwargs,
     ) -> AsyncIterator["RequestOutput"]:
         request_id = f"chatcmpl-{uuid.uuid4().hex}"
-        mm_input_dict = {"images": [], "videos": [], "imglens": [0], "vidlens": [0]}
+        mm_input_dict = {"images": [], "videos": [], "audios": [], "imglens": [0], "vidlens": [0], "audlens": [0]}
         if images is not None:
             mm_input_dict.update({"images": images, "imglens": [len(images)]})
             if not any(IMAGE_PLACEHOLDER in message["content"] for message in messages):
@@ -123,8 +121,13 @@ class VllmEngine(BaseEngine):
             if not any(VIDEO_PLACEHOLDER in message["content"] for message in messages):
                 messages[0]["content"] = VIDEO_PLACEHOLDER * len(videos) + messages[0]["content"]
 
+        if audios is not None:
+            mm_input_dict.update({"audios": audios, "audlens": [len(audios)]})
+            if not any(AUDIO_PLACEHOLDER in message["content"] for message in messages):
+                messages[0]["content"] = AUDIO_PLACEHOLDER * len(audios) + messages[0]["content"]
+
         messages = self.template.mm_plugin.process_messages(
-            messages, mm_input_dict["images"], mm_input_dict["videos"], self.processor
+            messages, mm_input_dict["images"], mm_input_dict["videos"], mm_input_dict["audios"], self.processor
         )
         paired_messages = messages + [{"role": "assistant", "content": ""}]
         system = system or self.generating_args["default_system"]
@@ -137,6 +140,7 @@ class VllmEngine(BaseEngine):
         num_return_sequences: int = input_kwargs.pop("num_return_sequences", 1)
         repetition_penalty: Optional[float] = input_kwargs.pop("repetition_penalty", None)
         length_penalty: Optional[float] = input_kwargs.pop("length_penalty", None)
+        skip_special_tokens: Optional[bool] = input_kwargs.pop("skip_special_tokens", None)
         max_length: Optional[int] = input_kwargs.pop("max_length", None)
         max_new_tokens: Optional[int] = input_kwargs.pop("max_new_tokens", None)
         stop: Optional[Union[str, List[str]]] = input_kwargs.pop("stop", None)
@@ -166,23 +170,23 @@ class VllmEngine(BaseEngine):
             or 1.0,  # repetition_penalty must > 0
             temperature=temperature if temperature is not None else self.generating_args["temperature"],
             top_p=(top_p if top_p is not None else self.generating_args["top_p"]) or 1.0,  # top_p must > 0
-            top_k=top_k if top_k is not None else self.generating_args["top_k"],
+            top_k=(top_k if top_k is not None else self.generating_args["top_k"]) or -1,  # top_k must > 0
             stop=stop,
-            stop_token_ids=[self.tokenizer.eos_token_id] + self.tokenizer.additional_special_tokens_ids,
+            stop_token_ids=self.template.get_stop_token_ids(self.tokenizer),
             max_tokens=max_tokens,
-            skip_special_tokens=self.generating_args["skip_special_tokens"],
+            skip_special_tokens=skip_special_tokens
+            if skip_special_tokens is not None
+            else self.generating_args["skip_special_tokens"],
         )
 
         if images is not None:  # add image features
-            multi_modal_data = {"image": []}
-            for image in images:
-                if not isinstance(image, (str, ImageObject)):
-                    raise ValueError(f"Expected image input is a path or PIL.Image, but got {type(image)}.")
-
-                if isinstance(image, str):
-                    image = Image.open(image).convert("RGB")
-
-                multi_modal_data["image"].append(image)
+            multi_modal_data = {
+                "image": self.template.mm_plugin._regularize_images(
+                    images,
+                    image_max_pixels=self.model_args.image_max_pixels,
+                    image_min_pixels=self.model_args.image_min_pixels,
+                )
+            }
         else:
             multi_modal_data = None
 
@@ -202,10 +206,11 @@ class VllmEngine(BaseEngine):
         tools: Optional[str] = None,
         images: Optional[Sequence["ImageInput"]] = None,
         videos: Optional[Sequence["VideoInput"]] = None,
+        audios: Optional[Sequence["AudioInput"]] = None,
         **input_kwargs,
     ) -> List["Response"]:
         final_output = None
-        generator = await self._generate(messages, system, tools, images, videos, **input_kwargs)
+        generator = await self._generate(messages, system, tools, images, videos, audios, **input_kwargs)
         async for request_output in generator:
             final_output = request_output
 
@@ -230,10 +235,11 @@ class VllmEngine(BaseEngine):
         tools: Optional[str] = None,
         images: Optional[Sequence["ImageInput"]] = None,
         videos: Optional[Sequence["VideoInput"]] = None,
+        audios: Optional[Sequence["AudioInput"]] = None,
         **input_kwargs,
     ) -> AsyncGenerator[str, None]:
         generated_text = ""
-        generator = await self._generate(messages, system, tools, images, videos, **input_kwargs)
+        generator = await self._generate(messages, system, tools, images, videos, audios, **input_kwargs)
         async for result in generator:
             delta_text = result.outputs[0].text[len(generated_text) :]
             generated_text = result.outputs[0].text

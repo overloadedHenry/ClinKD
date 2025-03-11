@@ -1,4 +1,4 @@
-# Copyright 2024 the LlamaFactory team.
+# Copyright 2025 the LlamaFactory team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from typing import Optional
 from typing_extensions import Annotated
 
 from ..chat import ChatModel
+from ..extras.constants import EngineName
 from ..extras.misc import torch_gc
 from ..extras.packages import is_fastapi_available, is_starlette_available, is_uvicorn_available
 from .chat import (
@@ -60,7 +61,7 @@ async def sweeper() -> None:
 
 @asynccontextmanager
 async def lifespan(app: "FastAPI", chat_model: "ChatModel"):  # collects GPU memory
-    if chat_model.engine_type == "huggingface":
+    if chat_model.engine.name == EngineName.HF:
         asyncio.create_task(sweeper())
 
     yield
@@ -106,7 +107,7 @@ def create_app(chat_model: "ChatModel") -> "FastAPI":
 
         if request.stream:
             generate = create_stream_chat_completion_response(request, chat_model)
-            return EventSourceResponse(generate, media_type="text/event-stream")
+            return EventSourceResponse(generate, media_type="text/event-stream", sep="\n")
         else:
             return await create_chat_completion_response(request, chat_model)
 

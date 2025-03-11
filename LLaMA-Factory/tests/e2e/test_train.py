@@ -1,4 +1,4 @@
-# Copyright 2024 the LlamaFactory team.
+# Copyright 2025 the LlamaFactory team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,6 @@ TRAIN_ARGS = {
     "dataset_dir": "REMOTE:" + DEMO_DATA,
     "template": "llama3",
     "cutoff_len": 1,
-    "overwrite_cache": False,
     "overwrite_output_dir": True,
     "per_device_train_batch_size": 1,
     "max_steps": 1,

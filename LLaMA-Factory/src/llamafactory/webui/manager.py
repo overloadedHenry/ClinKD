@@ -1,4 +1,4 @@
-# Copyright 2024 the LlamaFactory team.
+# Copyright 2025 the LlamaFactory team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,10 @@ if TYPE_CHECKING:
 
 
 class Manager:
+    r"""
+    A class to manage all the gradio components in Web UI.
+    """
+
     def __init__(self) -> None:
         self._id_to_elem: Dict[str, "Component"] = {}
         self._elem_to_id: Dict["Component", str] = {}

@@ -95,12 +95,24 @@ FORCE_TORCHRUN=1 NNODES=2 NODE_RANK=1 MASTER_ADDR=192.168.0.1 MASTER_PORT=29500 
 FORCE_TORCHRUN=1 llamafactory-cli train examples/train_lora/llama3_lora_sft_ds3.yaml
 ```
 
+#### 使用 Ray 在 4 张 GPU 上微调
+
+```bash
+USE_RAY=1 llamafactory-cli train examples/train_lora/llama3_lora_sft_ray.yaml
+```
+
 ### QLoRA 微调
 
 #### 基于 4/8 比特 Bitsandbytes/HQQ/EETQ 量化进行指令监督微调（推荐）
 
 ```bash
 llamafactory-cli train examples/train_qlora/llama3_lora_sft_otfq.yaml
+```
+
+#### 在 NPU 上基于 4 比特 Bitsandbytes 量化进行指令监督微调
+
+```bash
+llamafactory-cli train examples/train_qlora/llama3_lora_sft_bnb_npu.yaml
 ```
 
 #### 基于 4/8 比特 GPTQ 量化进行指令监督微调
@@ -158,6 +170,12 @@ llamafactory-cli export examples/merge_lora/llama3_lora_sft.yaml
 llamafactory-cli export examples/merge_lora/llama3_gptq.yaml
 ```
 
+### 保存 Ollama 配置文件
+
+```bash
+llamafactory-cli export examples/merge_lora/llama3_full_sft.yaml
+```
+
 ### 推理 LoRA 模型
 
 #### 使用 vLLM+TP 批量推理
@@ -190,6 +208,12 @@ llamafactory-cli api examples/inference/llama3_lora_sft.yaml
 
 ```bash
 llamafactory-cli train examples/extras/galore/llama3_full_sft.yaml
+```
+
+#### 使用 APOLLO 进行全参数训练
+
+```bash
+llamafactory-cli train examples/extras/apollo/llama3_full_sft.yaml
 ```
 
 #### 使用 BAdam 进行全参数训练

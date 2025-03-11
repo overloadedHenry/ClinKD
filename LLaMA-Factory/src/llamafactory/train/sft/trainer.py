@@ -34,7 +34,7 @@ from ..trainer_utils import create_custom_optimizer, create_custom_scheduler
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
-    from transformers import PreTrainedModel, PreTrainedTokenizer, ProcessorMixin
+    from transformers import PreTrainedTokenizer, ProcessorMixin
     from transformers.trainer import PredictionOutput
 
     from ...hparams import FinetuningArguments
@@ -49,7 +49,11 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
     """
 
     def __init__(
-        self, finetuning_args: "FinetuningArguments", processor: Optional["ProcessorMixin"], **kwargs
+        self,
+        finetuning_args: "FinetuningArguments",
+        processor: Optional["ProcessorMixin"],
+        gen_kwargs: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> None:
         if is_transformers_version_greater_than("4.46"):
             kwargs["processing_class"] = kwargs.pop("tokenizer")
@@ -58,6 +62,9 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
 
         super().__init__(**kwargs)
         self.finetuning_args = finetuning_args
+        if gen_kwargs is not None:
+            # https://github.com/huggingface/transformers/blob/v4.45.0/src/transformers/trainer_seq2seq.py#L287
+            self._gen_kwargs = gen_kwargs
 
         if processor is not None:
             self.add_callback(SaveProcessorCallback(processor))
@@ -87,22 +94,6 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
             return torch.utils.data.SequentialSampler(self.train_dataset)
 
         return super()._get_train_sampler()
-
-    @override
-    def compute_loss(
-        self, model: "PreTrainedModel", inputs: Dict[str, "torch.Tensor"], return_outputs: bool = False, **kwargs
-    ) -> Union["torch.Tensor", Tuple["torch.Tensor", List["torch.Tensor"]]]:
-        r"""
-        Fixes the loss value. See https://github.com/huggingface/transformers/pull/35438 for details.
-        """
-        loss = super().compute_loss(model, inputs, return_outputs, **kwargs)
-        if kwargs.get("num_items_in_batch") and not getattr(self, "model_accepts_loss_kwargs", False):
-            if return_outputs:
-                loss = (loss[0] / self.args.gradient_accumulation_steps, *loss[1:])
-            else:
-                loss = loss / self.args.gradient_accumulation_steps
-
-        return loss
 
     @override
     def prediction_step(

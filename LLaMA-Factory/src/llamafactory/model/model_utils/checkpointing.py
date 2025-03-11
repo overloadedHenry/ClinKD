@@ -85,12 +85,18 @@ def get_custom_gradient_checkpointing_func(gradient_checkpointing_func: Callable
     def custom_gradient_checkpointing_func(func: Callable, *args: Union["torch.Tensor", Any], **kwargs):
         module: "torch.nn.Module" = func.__self__
 
+        has_grad = False
         if any(param.requires_grad for param in module.parameters()):
+            has_grad = True
             for arg in args:
                 if torch.is_tensor(arg) and torch.is_floating_point(arg):
                     arg.requires_grad_(True)
+                    break  # assume the first tensor is always the hidden states
 
-        return gradient_checkpointing_func(func, *args, **kwargs)
+        if has_grad:
+            return gradient_checkpointing_func(func, *args, **kwargs)
+        else:
+            return func(*args, **kwargs)
 
     return custom_gradient_checkpointing_func
 
@@ -122,7 +128,7 @@ def _gradient_checkpointing_enable(
     if "value" in inspect.signature(self._set_gradient_checkpointing).parameters:  # old GC format
         self.apply(partial(self._set_gradient_checkpointing, value=True))
         self.enable_input_require_grads()
-        logger.warning_once("You are using the old GC format, some features (e.g. BAdam) will be invalid.")
+        logger.warning_rank0_once("You are using the old GC format, some features (e.g. BAdam) will be invalid.")
     else:  # have already enabled input require gradients
         self._set_gradient_checkpointing(enable=True, gradient_checkpointing_func=gradient_checkpointing_func)
 

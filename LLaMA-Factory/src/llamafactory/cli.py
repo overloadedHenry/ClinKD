@@ -1,4 +1,4 @@
-# Copyright 2024 the LlamaFactory team.
+# Copyright 2025 the LlamaFactory team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ from .chat.chat_model import run_chat
 from .eval.evaluator import run_eval
 from .extras import logging
 from .extras.env import VERSION, print_env
-from .extras.misc import get_device_count
+from .extras.misc import get_device_count, is_env_enabled, use_ray
 from .train.tuner import export_model, run_exp
 from .webui.interface import run_web_demo, run_web_ui
 
@@ -86,20 +86,26 @@ def main():
     elif command == Command.EXPORT:
         export_model()
     elif command == Command.TRAIN:
-        force_torchrun = os.getenv("FORCE_TORCHRUN", "0").lower() in ["true", "1"]
-        if force_torchrun or get_device_count() > 1:
+        force_torchrun = is_env_enabled("FORCE_TORCHRUN")
+        if force_torchrun or (get_device_count() > 1 and not use_ray()):
+            nnodes = os.getenv("NNODES", "1")
+            node_rank = os.getenv("NODE_RANK", "0")
+            nproc_per_node = os.getenv("NPROC_PER_NODE", str(get_device_count()))
             master_addr = os.getenv("MASTER_ADDR", "127.0.0.1")
             master_port = os.getenv("MASTER_PORT", str(random.randint(20001, 29999)))
-            logger.info_rank0(f"Initializing distributed tasks at: {master_addr}:{master_port}")
+            logger.info_rank0(f"Initializing {nproc_per_node} distributed tasks at: {master_addr}:{master_port}")
+            if int(nnodes) > 1:
+                print(f"Multi-node training enabled: num nodes: {nnodes}, node rank: {node_rank}")
+
             process = subprocess.run(
                 (
                     "torchrun --nnodes {nnodes} --node_rank {node_rank} --nproc_per_node {nproc_per_node} "
                     "--master_addr {master_addr} --master_port {master_port} {file_name} {args}"
                 )
                 .format(
-                    nnodes=os.getenv("NNODES", "1"),
-                    node_rank=os.getenv("NODE_RANK", "0"),
-                    nproc_per_node=os.getenv("NPROC_PER_NODE", str(get_device_count())),
+                    nnodes=nnodes,
+                    node_rank=node_rank,
+                    nproc_per_node=nproc_per_node,
                     master_addr=master_addr,
                     master_port=master_port,
                     file_name=launcher.__file__,
@@ -119,7 +125,7 @@ def main():
     elif command == Command.HELP:
         print(USAGE)
     else:
-        raise NotImplementedError(f"Unknown command: {command}.")
+        print(f"Unknown command: {command}.\n{USAGE}")
 
 
 if __name__ == "__main__":

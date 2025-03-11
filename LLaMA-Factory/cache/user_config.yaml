@@ -1,5 +1,0 @@
-cache_dir: null
-lang: zh
-last_model: Qwen2-VL-7B-Instruct
-path_dict:
-  Qwen2-VL-7B-Instruct: /media/adminroot/disk_2/ghy/workspace/Qwen/qwen2-vl

@@ -1,4 +1,4 @@
-# Copyright 2024 the LlamaFactory team.
+# Copyright 2025 the LlamaFactory team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from types import MethodType
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional
 
 import torch
 from transformers import Trainer
@@ -25,7 +25,7 @@ from ..trainer_utils import create_custom_optimizer, create_custom_scheduler
 
 
 if TYPE_CHECKING:
-    from transformers import PreTrainedModel, ProcessorMixin
+    from transformers import ProcessorMixin
 
     from ...hparams import FinetuningArguments
 
@@ -72,19 +72,3 @@ class CustomTrainer(Trainer):
             return torch.utils.data.SequentialSampler(self.train_dataset)
 
         return super()._get_train_sampler()
-
-    @override
-    def compute_loss(
-        self, model: "PreTrainedModel", inputs: Dict[str, "torch.Tensor"], return_outputs: bool = False, **kwargs
-    ) -> Union["torch.Tensor", Tuple["torch.Tensor", List["torch.Tensor"]]]:
-        r"""
-        Fixes the loss value. See https://github.com/huggingface/transformers/pull/35438 for details.
-        """
-        loss = super().compute_loss(model, inputs, return_outputs, **kwargs)
-        if kwargs.get("num_items_in_batch") and not getattr(self, "model_accepts_loss_kwargs", False):
-            if return_outputs:
-                loss = (loss[0] / self.args.gradient_accumulation_steps, *loss[1:])
-            else:
-                loss = loss / self.args.gradient_accumulation_steps
-
-        return loss

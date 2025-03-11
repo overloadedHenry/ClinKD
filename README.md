@@ -1,18 +1,20 @@
 <div id="top" align="center">
 <p align="center">
-    <img src="https://capsule-render.vercel.app/api?type=waving&height=300&color=gradient&text=ClinKD:%20Cross-Modal%20Clinical%20Knowledge%20Distiller%20For%20Multi-Task%20Medical%20Images&reversal=false&fontSize=20&textBg=false&fontAlignY=42" alt="Header Image">
+    <img src="https://capsule-render.vercel.app/api?type=cylinder&height=300&color=0:c2e59c,100:64b3f4&text=ClinKD:%20Cross-Modal%20Clinical%20Knowledge%20Distiller%20For%20Multi-Task%20Medical%20Images&section=header&textBg=false&fontSize=22" alt="Header Image">
   </a>
 </p>
 </div>
 
 ## ✨ Framework
 ![framework](image/README/framework.png)
+We propose a medical knowledge distillation framwork which bridges medical knowledge gap in Qwen2-VL. As shown in the figure, the image features will be captured by **Med-CLIP Guided RoPE** on different dimension, and then comes the distillation and stf part.
 ## 💡 Highlights 
 
 - 🔥 **Med-CLIP Guided RoPE:** We propose the Med-CLIP Guided RoPE to improve image-text alignment by fixing distinct intervals between different modal features. The modified model is in `model/modeling_qwen2_vl.py`
-
 ![rope](image/README/mcgrope.png)
+As shown in the example, we think the traditional index interval will miss the cross-modal information which may influence the performance of alignment, hence we set different index intervals so that the rotation angles will be distinct, making cross-modal features more easy to be captured. 
 - 🔥 **Clinical Knowledge Distiller:** The Clinical Knowlegde Distiller comprise Pseudo-Labels Medical Distillation and Reflective Correction Training. We use pseudo-labels to overcome the limitation caused by medical knowledge gap.
+
 - 🔥 **Semantic-Aware Selective Generation:** The SASG part is used for the best answer with semantic similarity.
 
 ## 📕 Dataset

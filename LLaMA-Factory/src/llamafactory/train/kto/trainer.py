@@ -28,9 +28,9 @@ from trl.trainer import disable_dropout_in_model
 from typing_extensions import override
 
 from ...extras.constants import IGNORE_INDEX
-from ...extras.packages import is_transformers_version_equal_to_4_46, is_transformers_version_greater_than
+from ...extras.packages import is_transformers_version_greater_than
 from ..callbacks import SaveProcessorCallback
-from ..trainer_utils import create_custom_optimizer, create_custom_scheduler, get_batch_logps
+from ..trainer_utils import create_custom_optimizer, create_custom_scheduler, get_batch_logps, nested_detach
 
 
 if TYPE_CHECKING:
@@ -142,7 +142,7 @@ class CustomKTOTrainer(KTOTrainer):
         r"""
         Runs forward pass and computes the log probabilities.
         """
-        batch = {k: v.detach().clone() for k, v in batch.items()}  # avoid error
+        batch = nested_detach(batch, clone=True)  # avoid error
         model_inputs = {
             "input_ids": batch[f"{prefix}input_ids"],
             "attention_mask": batch[f"{prefix}attention_mask"],
@@ -155,6 +155,15 @@ class CustomKTOTrainer(KTOTrainer):
 
         if "image_grid_thw" in batch:
             model_inputs["image_grid_thw"] = batch["image_grid_thw"]
+
+        if "aspect_ratio_ids" in batch:
+            model_inputs["aspect_ratio_ids"] = batch["aspect_ratio_ids"]
+
+        if "aspect_ratio_mask" in batch:
+            model_inputs["aspect_ratio_mask"] = batch["aspect_ratio_mask"]
+
+        if f"{prefix}cross_attention_mask" in batch:
+            model_inputs["cross_attention_mask"] = batch[f"{prefix}cross_attention_mask"]
 
         logits = model(**model_inputs, return_dict=True, use_cache=False).logits.to(torch.float32)
         logps, valid_length = get_batch_logps(logits=logits, labels=batch[f"{prefix}labels"])
@@ -256,19 +265,12 @@ class CustomKTOTrainer(KTOTrainer):
         self, model: "PreTrainedModel", inputs: Dict[str, "torch.Tensor"], return_outputs: bool = False, **kwargs
     ) -> Union["torch.Tensor", Tuple["torch.Tensor", List["torch.Tensor"]]]:
         r"""
-        Fixes the loss value. See https://github.com/huggingface/transformers/pull/35438 for details.
+        Subclass and override to accept extra kwargs.
         """
-        loss = super().compute_loss(model, inputs, return_outputs)
-        if is_transformers_version_equal_to_4_46() and kwargs.get("num_items_in_batch"):
-            if return_outputs:
-                loss = (loss[0] / self.args.gradient_accumulation_steps, *loss[1:])
-            else:
-                loss = loss / self.args.gradient_accumulation_steps
-
-        return loss
+        return super().compute_loss(model, inputs, return_outputs)
 
     @override
-    def log(self, logs: Dict[str, float]) -> None:
+    def log(self, logs: Dict[str, float], *args, **kwargs) -> None:
         r"""
         Log `logs` on the various objects watching training, including stored metrics.
         """
@@ -304,4 +306,4 @@ class CustomKTOTrainer(KTOTrainer):
             if not key.startswith("dummy_"):
                 logs[key] = metric
 
-        return Trainer.log(self, logs)
+        return Trainer.log(self, logs, *args, **kwargs)

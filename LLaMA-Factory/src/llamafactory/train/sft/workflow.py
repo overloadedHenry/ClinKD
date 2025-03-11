@@ -78,6 +78,12 @@ def run_sft(
         metric_module["compute_metrics"] = ComputeAccuracy()
         metric_module["preprocess_logits_for_metrics"] = eval_logit_processor
 
+    # Keyword arguments for `model.generate`
+    gen_kwargs = generating_args.to_dict(obey_generation_config=True)
+    gen_kwargs["eos_token_id"] = [tokenizer.eos_token_id] + tokenizer.additional_special_tokens_ids
+    gen_kwargs["pad_token_id"] = tokenizer.pad_token_id
+    gen_kwargs["logits_processor"] = get_logits_processor()
+
     # Initialize our Trainer
     trainer = CustomSeq2SeqTrainer(
         model=model,
@@ -85,16 +91,11 @@ def run_sft(
         finetuning_args=finetuning_args,
         data_collator=data_collator,
         callbacks=callbacks,
+        gen_kwargs=gen_kwargs,
         **dataset_module,
         **tokenizer_module,
         **metric_module,
     )
-
-    # Keyword arguments for `model.generate`
-    gen_kwargs = generating_args.to_dict(obey_generation_config=True)
-    gen_kwargs["eos_token_id"] = [tokenizer.eos_token_id] + tokenizer.additional_special_tokens_ids
-    gen_kwargs["pad_token_id"] = tokenizer.pad_token_id
-    gen_kwargs["logits_processor"] = get_logits_processor()
 
     # Training
     if training_args.do_train:
@@ -122,7 +123,7 @@ def run_sft(
 
     # Predict
     if training_args.do_predict:
-        logger.warning_once("Batch generation can be very slow. Consider using `scripts/vllm_infer.py` instead.")
+        logger.warning_rank0_once("Batch generation can be very slow. Consider using `scripts/vllm_infer.py` instead.")
         predict_results = trainer.predict(dataset_module["eval_dataset"], metric_key_prefix="predict", **gen_kwargs)
         trainer.log_metrics("predict", predict_results.metrics)
         trainer.save_metrics("predict", predict_results.metrics)

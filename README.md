@@ -5,20 +5,37 @@
 </p>
 </div>
 
+## ✨ Framework
+![framework](image/README/framework.png)
 ## 💡 Highlights 
 
 - 🔥 **Med-CLIP Guided RoPE:** We propose the Med-CLIP Guided RoPE to improve image-text alignment by fixing distinct intervals between different modal features. The modified model is in `model/modeling_qwen2_vl.py`
+![rope](image/README\rope.png)
 - 🔥 **Clinical Knowledge Distiller:** The Clinical Knowlegde Distiller comprise Pseudo-Labels Medical Distillation and Reflective Correction Training. We use pseudo-labels to overcome the limitation caused by medical knowledge gap.
 - 🔥 **Semantic-Aware Selective Generation:** The SASG part is used for the best answer with semantic similarity.
 
-## Dataset
+## 📕 Dataset
 - For the images downloading, please refer to the [SAM-Med2D](https://github.com/OpenGVLab/SAM-Med2D).
-- For QA pairs, please search the git repo of [BiRD](https://github.com/ShawnHuang497/BiRD?tab=readme-ov-file).
+- For QA pairs, please search the git repo of [BiRD](https://github.com/ShawnHuang497/BiRD?tab=readme-ov-file) (We are not allowed to redistribute the original dataset a second time, but you can easily obtain it from the original author).
 
-## 🛠️ Usage
+## 
+
+## 🚀 Usage
 We recommend [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory) for training Qwen2-VL. You may need to convert the original dataset format to the ShareGPT format. We provide the python code for converting format in `data/transfer2sharegpt.py`
-###  Train
-Please refer to [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory).
+### 🛠️ Train
+1. Install LLaMA-Factory.
+```shell
+git clone --depth 1 https://github.com/hiyouga/LLaMA-Factory.git
+cd LLaMA-Factory
+pip install -e ".[torch,metrics]"
+```
+2. Launch LLaMA Board GUI.
+```shell
+llamafactory-cli webui
+```
+3. Setup training configuration. (We provide our config file in `config/train_config.yaml`)
+
+For other usage, please refer to [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory).
 If you want to do knowledge distillation, you need to write Trainer as:
 ```python
 class PseudoKDTrainer(Trainer):
@@ -83,7 +100,7 @@ class PseudoKDTrainer(Trainer):
 Knowledge distillation cost huge GPU memories, please use `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` to save GPU memories.
 
 
-### Evaluation
+### 📜 Evaluation
 ### Step 1: Inference
 
 ```shell
@@ -94,3 +111,5 @@ sh test_metric/infer_all.sh
 ```shell
 sh test_metric/eval_all.sh
 ```
+## 📂 Checkpoints
+We will release our checkpoint in July, 2025

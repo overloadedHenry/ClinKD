@@ -6,7 +6,7 @@
 </div> -->
 
 <div align="center">
-  <h2><img src="./image/README/clinkd.png" width="50" alt="Panda Doctor" align="center">ClinKD: Cross-Modal Clinical Knowledge Distiller For Multi-Task Medical Images</h2>
+  <h2><img src="./image/README/clinkd.png" width="50" alt="Panda Doctor" align="center">ClinKD: Cross-Modal Clinical Knowledge Distiller<br> For Multi-Task Medical Images</h2>
   <!-- <p>🧠 Med-VQA | 🤖 MLLMs | 📊 Pseudo-Lables Knowledge Distillation  </p> -->
    <!-- <img src="image/README/clinkd.png" width="140" alt="Panda Doctor" style="float: left; margin-right: 30px;"> -->
   <!-- <div style="overflow: hidden;">

@@ -1,8 +1,19 @@
-<div id="top" align="center">
+<!-- <div id="top" align="center">
 <p align="center">
     <img src="https://capsule-render.vercel.app/api?type=rounded&height=150&color=0:c2e59c,100:64b3f4&text=ClinKD:%20Cross-Modal%20Clinical%20Knowledge%20Distiller%20For%20Multi-Task%20Medical%20Images&section=header&textBg=false&fontSize=22" alt="Header Image">
   </a>
 </p>
+</div> -->
+<div align="center">
+  <h3><img src="./image/README/clinkd.jpg" width="70" alt="Panda Doctor" style="vertical-align: -22px;margin-right: 15px;">ClinKD: Cross-Modal Clinical Knowledge Distiller For Multi-Task Medical Images</h3>
+  <!-- <p>🧠 Med-VQA | 🤖 MLLMs | 📊 Pseudo-Lables Knowledge Distillation  </p> -->
+     <p>
+    <img alt="AI" src="https://img.shields.io/badge/AI-Multi--Modal Large Language Models-blue?style=flat&logo=artificial-intelligence"/>
+    <img alt="Domain" src="https://img.shields.io/badge/Domain-Med--VQA-green?style=flat&logo=healthcare"/>
+    <img alt="Dataset" src="https://img.shields.io/badge/Dataset-Multi--Task Dataset-orange?style=flat"/>
+    <img alt="Technique" src="https://img.shields.io/badge/Technique-Pseudo--Labels Knowledge Distillation-red?style=flat"/>
+
+  </p>
 </div>
 
 ## ✨ Framework
@@ -115,3 +126,5 @@ sh test_metric/eval_all.sh
 ```
 ## 📂 Checkpoints
 We will release our checkpoint in July, 2025
+
+## 🕹️ Demo

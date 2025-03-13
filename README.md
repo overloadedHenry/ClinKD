@@ -5,7 +5,7 @@
 </p>
 </div> -->
 <div align="center">
-  <h3><img src="./image/README/clinkd.jpg" width="70" alt="Panda Doctor" style="vertical-align: -22px;margin-right: 15px;">ClinKD: Cross-Modal Clinical Knowledge Distiller For Multi-Task Medical Images</h3>
+  <h3><img src="./image/README/clinkd.png" width="70" alt="Panda Doctor" style="vertical-align: -22px;margin-right: 15px;">ClinKD: Cross-Modal Clinical Knowledge Distiller For Multi-Task Medical Images</h3>
   <!-- <p>🧠 Med-VQA | 🤖 MLLMs | 📊 Pseudo-Lables Knowledge Distillation  </p> -->
      <p>
     <img alt="AI" src="https://img.shields.io/badge/AI-Multi--Modal Large Language Models-blue?style=flat&logo=artificial-intelligence"/>
@@ -128,3 +128,4 @@ sh test_metric/eval_all.sh
 We will release our checkpoint in July, 2025
 
 ## 🕹️ Demo
+We will release the demo soon.

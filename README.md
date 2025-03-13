@@ -5,7 +5,7 @@
 </p>
 </div> -->
 <div align="center">
-  <h2><img src="./image/README/clinkd.png" width="70" alt="Panda Doctor" style="vertical-align: -22px;margin-right: 15px;">ClinKD: Cross-Modal Clinical Knowledge Distiller For Multi-Task Medical Images</h2>
+  <h2><img src="./image/README/clinkd.png" width="70" alt="Panda Doctor" style="vertical-align: center;margin-right: 15px;">ClinKD: Cross-Modal Clinical Knowledge Distiller For Multi-Task Medical Images</h2>
   <!-- <p>🧠 Med-VQA | 🤖 MLLMs | 📊 Pseudo-Lables Knowledge Distillation  </p> -->
      <p>
     <img alt="AI" src="https://img.shields.io/badge/AI-Multi--Modal Large Language Models-blue?style=flat&logo=artificial-intelligence"/>

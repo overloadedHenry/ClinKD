@@ -14,6 +14,7 @@
     <h2 style="margin-top: 0;">ClinKD:
     Cross-Modal Clinical Knowledge Distiller For Multi-Task Medical Images</h2> -->
   </div>
+  <div align="center">
      <p>
     <img alt="AI" src="https://img.shields.io/badge/AI-Multi--Modal Large Language Models-blue?style=flat&logo=artificial-intelligence"/>
     <img alt="Domain" src="https://img.shields.io/badge/Domain-Med--VQA-green?style=flat&logo=healthcare"/>

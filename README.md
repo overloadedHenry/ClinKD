@@ -139,4 +139,4 @@ sh test_metric/eval_all.sh
 We will release our checkpoint in July, 2025
 
 ## 🕹️ Demo
-![demo](image/README/demo.gif)
+![demo](image/README/demo_1.gif)
